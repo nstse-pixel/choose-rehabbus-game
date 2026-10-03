@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>選出復康巴 - 互動問答遊戲</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #090d16; /* Ultra high-contrast dark background */
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Large touch card interactive styles */
+        .option-card {
+            transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
+        .option-card:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.7);
+        }
+
+        .option-card:active {
+            transform: scale(0.96);
+        }
+
+        /* Correct and Wrong Choice Visual Feedback Animations */
+        @keyframes correctPulse {
+            0% { transform: scale(1); border-color: #22c55e; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.8); }
+            50% { transform: scale(1.03); border-color: #4ade80; box-shadow: 0 0 40px 15px rgba(34, 197, 94, 0.9); }
+            100% { transform: scale(1); border-color: #22c55e; box-shadow: 0 0 20px 8px rgba(34, 197, 94, 0.6); }
+        }
+
+        @keyframes wrongShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-16px); border-color: #ef4444; }
+            40%, 80% { transform: translateX(16px); border-color: #ef4444; }
+        }
+
+        .correct-animate {
+            animation: correctPulse 0.6s ease-in-out infinite alternate;
+            border-color: #22c55e !important;
+            background-color: rgba(34, 197, 94, 0.2) !important;
+        }
+
+        .wrong-animate {
+            animation: wrongShake 0.5s ease-in-out;
+            border-color: #ef4444 !important;
+            background-color: rgba(239, 68, 68, 0.2) !important;
+        }
+
+        /* High contrast button styling */
+        .btn-yellow {
+            background-color: #facc15;
+            color: #000000;
+        }
+        .btn-yellow:hover {
+            background-color: #fde047;
+        }
+    </style>
+</head>
+<body class="text-white h-screen w-screen flex flex-col justify-between overflow-hidden">
+
+    <!-- Compact Minimized Header Bar to maximize screen real estate for image options -->
+    <header class="w-full bg-slate-900 border-b-4 border-amber-400 px-3 py-2 md:px-6 md:py-3 flex items-center justify-between gap-2 shadow-2xl z-20 shrink-0">
+        <!-- Question Text (Compact & High Contrast) -->
+        <div class="flex items-center gap-2 md:gap-3">
+            <i class="fa-solid fa-circle-question text-amber-400 text-2xl md:text-3xl shrink-0"></i>
+            <h1 class="text-lg sm:text-2xl md:text-3xl font-black text-amber-300 tracking-wide">
+                哪一個是「復康巴」？
+            </h1>
+        </div>
+
+        <!-- Right Side Header Controls (Progress, Score, Replay Button) -->
+        <div class="flex items-center gap-2 sm:gap-4 shrink-0">
+            <!-- Round Progress Badge -->
+            <div class="bg-slate-800 border-2 border-cyan-400 px-3 py-1 md:px-4 md:py-1.5 rounded-xl text-base md:text-xl font-bold text-cyan-300 whitespace-nowrap">
+                關卡: <span id="round-num" class="text-amber-400 text-xl md:text-2xl font-black">1</span> / 3
+            </div>
+
+            <!-- Score Badge -->
+            <div class="bg-slate-800 border-2 border-emerald-400 px-3 py-1 md:px-4 md:py-1.5 rounded-xl text-base md:text-xl font-bold text-emerald-300 whitespace-nowrap">
+                得分: <span id="score-num" class="text-amber-400 text-xl md:text-2xl font-black">0</span>
+            </div>
+
+            <!-- Voice Replay Button -->
+            <button id="btn-replay-voice" onclick="playQuestionAudio()" title="重新播放語音提問" class="btn-yellow text-base md:text-xl font-black px-3 py-1.5 md:px-5 md:py-2 rounded-xl flex items-center gap-2 border-2 border-black shadow-md active:scale-95 transition-transform">
+                <i class="fa-solid fa-volume-high text-lg md:text-xl"></i>
+                <span class="hidden sm:inline">語音</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Interactive Choice Area - Scaled to take up maximum viewport space for iPad/Desktop -->
+    <main class="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-5 md:p-8 grid grid-cols-2 gap-4 sm:gap-6 md:gap-10 items-stretch justify-center min-h-0">
+        
+        <!-- Left Option Card (No "Option A" text, purely high-contrast image) -->
+        <button id="card-left" onclick="handleChoice('left')" class="option-card relative bg-slate-800 hover:bg-slate-750 border-8 border-cyan-400 rounded-3xl p-3 sm:p-6 md:p-8 flex items-center justify-center shadow-2xl overflow-hidden focus:outline-none focus:ring-8 focus:ring-yellow-300 w-full h-full">
+            <img id="img-left" src="高德地圖.jpg" alt="選項圖片" class="w-full h-full object-contain pointer-events-none rounded-2xl" onerror="handleImageError(this, 'left')">
+            
+            <!-- Result Overlay Icon (Check / Cross) -->
+            <div id="overlay-left" class="absolute inset-0 flex items-center justify-center bg-slate-950/70 opacity-0 transition-opacity duration-200 pointer-events-none">
+                <i id="overlay-icon-left" class="fa-solid text-7xl md:text-9xl"></i>
+            </div>
+        </button>
+
+        <!-- Right Option Card (No "Option B" text, purely high-contrast image) -->
+        <button id="card-right" onclick="handleChoice('right')" class="option-card relative bg-slate-800 hover:bg-slate-750 border-8 border-purple-400 rounded-3xl p-3 sm:p-6 md:p-8 flex items-center justify-center shadow-2xl overflow-hidden focus:outline-none focus:ring-8 focus:ring-yellow-300 w-full h-full">
+            <img id="img-right" src="復康巴士.jpg" alt="選項圖片" class="w-full h-full object-contain pointer-events-none rounded-2xl" onerror="handleImageError(this, 'right')">
+            
+            <!-- Result Overlay Icon (Check / Cross) -->
+            <div id="overlay-right" class="absolute inset-0 flex items-center justify-center bg-slate-950/70 opacity-0 transition-opacity duration-200 pointer-events-none">
+                <i id="overlay-icon-right" class="fa-solid text-7xl md:text-9xl"></i>
+            </div>
+        </button>
+
+    </main>
+
+    <!-- Start Game Modal (Ensures Web Speech API user touch activation on iPad) -->
+    <div id="start-overlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center z-50 p-6">
+        <div class="bg-slate-900 border-8 border-amber-400 rounded-3xl p-8 md:p-12 max-w-2xl text-center shadow-2xl">
+            <div class="text-7xl md:text-9xl mb-6 text-amber-400">
+                <i class="fa-solid fa-bus text-amber-400"></i>
+            </div>
+            <h2 class="text-3xl sm:text-5xl md:text-6xl font-black text-white mb-6">復康巴問答遊戲</h2>
+            <p class="text-xl sm:text-2xl md:text-3xl text-amber-200 mb-8 font-bold leading-relaxed">
+                聽到題目後，請點擊正確的圖案標誌。<br>一共進行 3 關！
+            </p>
+            <button onclick="startGame()" class="btn-yellow text-3xl md:text-5xl font-black px-10 py-5 md:px-14 md:py-6 rounded-2xl border-8 border-black shadow-2xl active:scale-95 transition-transform hover:scale-105">
+                <i class="fa-solid fa-play mr-3"></i>開始遊戲
+            </button>
+        </div>
+    </div>
+
+    <!-- End Game Result Modal -->
+    <div id="end-overlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center z-50 p-6 hidden">
+        <div class="bg-slate-900 border-8 border-emerald-400 rounded-3xl p-8 md:p-12 max-w-2xl text-center shadow-2xl relative overflow-hidden">
+            <div id="end-icon" class="text-7xl md:text-9xl mb-4 text-yellow-400 animate-bounce">
+                🏆
+            </div>
+            <h2 class="text-4xl md:text-6xl font-black text-white mb-4">遊戲結束！</h2>
+            <p class="text-3xl md:text-4xl text-emerald-300 font-extrabold mb-6">
+                得分：<span id="final-score" class="text-amber-400 text-5xl md:text-6xl">3</span> / 3
+            </p>
+            <p id="end-feedback-text" class="text-2xl md:text-3xl text-slate-200 font-bold mb-8">
+                答得很好！
+            </p>
+            <button onclick="restartGame()" class="btn-yellow text-3xl md:text-5xl font-black px-10 py-5 md:px-12 md:py-6 rounded-2xl border-8 border-black shadow-2xl active:scale-95 transition-transform hover:scale-105">
+                <i class="fa-solid fa-rotate-right mr-3"></i>再玩一次
+            </button>
+        </div>
+    </div>
+
+    <!-- Feedback Banner Banner -->
+    <div id="feedback-toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 hidden w-11/12 max-w-2xl">
+        <div id="toast-content" class="text-2xl sm:text-4xl md:text-5xl font-black px-6 py-4 md:py-6 rounded-2xl border-8 shadow-2xl text-center">
+            你答對了!做得好!
+        </div>
+    </div>
+
+    <script>
+        // Game Logic & State Management Variables
+        let currentRound = 1;
+        const totalRounds = 3;
+        let score = 0;
+        let isAnswerLocked = false;
+        let leftIsRehabus = true; // Tracks whether Rehabus image is currently on the left card
+
+        // Embedded Vector SVG Fallbacks
+        const AMAP_SVG = "data:image/svg+xml;utf8," + encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+                <rect width="400" height="400" rx="90" fill="#ffffff"/>
+                <path d="M 40 40 A 80 80 0 0 1 190 40 L 190 190 L 40 190 Z" fill="#a3e635"/>
+                <path d="M 210 40 L 360 40 A 80 80 0 0 1 360 190 L 210 190 Z" fill="#f3f4f6"/>
+                <path d="M 40 210 L 190 210 L 190 360 L 40 360 A 80 80 0 0 1 40 210 Z" fill="#e0f2fe"/>
+                <path d="M 210 210 L 360 210 L 360 360 A 80 80 0 0 1 210 360 Z" fill="#38bdf8"/>
+                <path d="M 60 210 L 320 70 L 160 320 L 150 230 Z" fill="#0066ff"/>
+                <path d="M 150 230 L 320 70 L 180 200 Z" fill="#0044cc"/>
+            </svg>
+        `);
+
+        const REHAB_SVG = "data:image/svg+xml;utf8," + encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300" width="100%" height="100%">
+                <rect width="500" height="300" fill="none"/>
+                <path d="M 50 210 L 50 100 C 50 70 80 50 120 50 L 400 50 C 440 50 470 70 470 120 L 470 210 Z" fill="#ffffff" stroke="#1e293b" stroke-width="6"/>
+                <path d="M 50 100 C 50 70 80 50 120 50 L 250 50 L 250 100 Z" fill="#facc15"/>
+                <path d="M 50 150 L 200 150 L 130 210 L 50 210 Z" fill="#84cc16"/>
+                <rect x="70" y="80" width="80" height="60" rx="10" fill="#38bdf8" stroke="#1e293b" stroke-width="4"/>
+                <rect x="160" y="80" width="70" height="60" rx="5" fill="#38bdf8" stroke="#1e293b" stroke-width="4"/>
+                <rect x="240" y="80" width="70" height="60" rx="5" fill="#38bdf8" stroke="#1e293b" stroke-width="4"/>
+                <rect x="320" y="80" width="70" height="60" rx="5" fill="#38bdf8" stroke="#1e293b" stroke-width="4"/>
+                <circle cx="130" cy="210" r="35" fill="#1e293b"/>
+                <circle cx="130" cy="210" r="15" fill="#94a3b8"/>
+                <circle cx="390" cy="210" r="35" fill="#1e293b"/>
+                <circle cx="390" cy="210" r="15" fill="#94a3b8"/>
+                <text x="260" y="180" font-family="sans-serif" font-weight="bold" font-size="22" fill="#dc2626">復康巴士 Rehabus</text>
+            </svg>
+        `);
+
+        // Web Speech API Synthesis Engine Setup
+        let synth = window.speechSynthesis;
+        let selectedVoice = null;
+
+        function initVoices() {
+            if (!('speechSynthesis' in window)) return;
+            const voices = synth.getVoices();
+            // Prioritize Cantonese (zh-HK), then Traditional Chinese (zh-TW), then generic Chinese (zh)
+            selectedVoice = voices.find(v => v.lang === 'zh-HK' || v.lang === 'yue-Hant-HK') ||
+                            voices.find(v => v.lang === 'zh-TW') ||
+                            voices.find(v => v.lang.startsWith('zh'));
+        }
+
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = initVoices;
+            initVoices();
+        }
+
+        // Web Speech API speak function with callback and fallback safety
+        function speak(text, onEndCallback) {
+            if (!('speechSynthesis' in window)) {
+                if (onEndCallback) setTimeout(onEndCallback, 1500);
+                return;
+            }
+
+            try {
+                synth.cancel();
+            } catch (e) {}
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            if (!selectedVoice) initVoices();
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
+            utterance.lang = selectedVoice ? selectedVoice.lang : 'zh-HK';
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+
+            let hasCalledCallback = false;
+            const safeCallback = () => {
+                if (!hasCalledCallback) {
+                    hasCalledCallback = true;
+                    if (onEndCallback) onEndCallback();
+                }
+            };
+
+            utterance.onend = safeCallback;
+            utterance.onerror = (e) => {
+                console.warn("Speech synthesis error:", e);
+                safeCallback();
+            };
+
+            // Fallback timer to proceed even if speech synthesis is muted or fails on certain devices/browsers
+            const fallbackDelay = Math.max(1600, text.length * 320);
+            setTimeout(safeCallback, fallbackDelay);
+
+            try {
+                synth.speak(utterance);
+            } catch (err) {
+                console.error("Speech exception:", err);
+                safeCallback();
+            }
+        }
+
+        function playQuestionAudio() {
+            speak("哪一個是復康巴");
+        }
+
+        function handleImageError(imgElem, side) {
+            const isRehabHere = (side === 'left' && leftIsRehabus) || (side === 'right' && !leftIsRehabus);
+            imgElem.src = isRehabHere ? REHAB_SVG : AMAP_SVG;
+        }
+
+        function startGame() {
+            document.getElementById('start-overlay').classList.add('hidden');
+            score = 0;
+            currentRound = 1;
+            updateUI();
+            setupRound();
+        }
+
+        function restartGame() {
+            document.getElementById('end-overlay').classList.add('hidden');
+            score = 0;
+            currentRound = 1;
+            updateUI();
+            setupRound();
+        }
+
+        function updateUI() {
+            document.getElementById('round-num').innerText = currentRound;
+            document.getElementById('score-num').innerText = score;
+        }
+
+        function setupRound() {
+            isAnswerLocked = false;
+            
+            // Clear card animations and overlay icons
+            const cardLeft = document.getElementById('card-left');
+            const cardRight = document.getElementById('card-right');
+            cardLeft.className = cardLeft.className.replace(/correct-animate|wrong-animate/g, '').trim();
+            cardRight.className = cardRight.className.replace(/correct-animate|wrong-animate/g, '').trim();
+
+            document.getElementById('overlay-left').classList.add('opacity-0');
+            document.getElementById('overlay-right').classList.add('opacity-0');
+
+            // 50% Random position swap between left & right columns
+            leftIsRehabus = Math.random() >= 0.5;
+
+            const imgLeft = document.getElementById('img-left');
+            const imgRight = document.getElementById('img-right');
+
+            if (leftIsRehabus) {
+                imgLeft.src = '復康巴士.jpg';
+                imgRight.src = '高德地圖.jpg';
+            } else {
+                imgLeft.src = '高德地圖.jpg';
+                imgRight.src = '復康巴士.jpg';
+            }
+
+            imgLeft.onerror = () => handleImageError(imgLeft, 'left');
+            imgRight.onerror = () => handleImageError(imgRight, 'right');
+
+            // Play Question Speech Prompt
+            setTimeout(() => {
+                playQuestionAudio();
+            }, 300);
+        }
+
+        function handleChoice(chosenSide) {
+            if (isAnswerLocked) return;
+            isAnswerLocked = true;
+
+            const isCorrect = (chosenSide === 'left' && leftIsRehabus) || (chosenSide === 'right' && !leftIsRehabus);
+            const chosenCard = document.getElementById(chosenSide === 'left' ? 'card-left' : 'card-right');
+            const overlay = document.getElementById(chosenSide === 'left' ? 'overlay-left' : 'overlay-right');
+            const overlayIcon = document.getElementById(chosenSide === 'left' ? 'overlay-icon-left' : 'overlay-icon-right');
+            const toast = document.getElementById('feedback-toast');
+            const toastContent = document.getElementById('toast-content');
+
+            overlay.classList.remove('opacity-0');
+
+            if (isCorrect) {
+                score++;
+                updateUI();
+                chosenCard.classList.add('correct-animate');
+                
+                // Show Green Success Overlay Checkmark
+                overlayIcon.className = "fa-solid fa-circle-check text-emerald-400 text-7xl md:text-9xl drop-shadow-lg";
+
+                // Toast Feedback
+                toastContent.className = "text-2xl sm:text-4xl md:text-5xl font-black px-6 py-4 md:py-6 rounded-2xl border-8 shadow-2xl text-center bg-emerald-600 text-white border-emerald-300";
+                toastContent.innerText = "你答對了!做得好!";
+                toast.classList.remove('hidden');
+
+                // Speak voice prompt
+                speak("你答對了!做得好!", () => {
+                    finishRound();
+                });
+            } else {
+                chosenCard.classList.add('wrong-animate');
+                
+                // Show Red Error Overlay Cross
+                overlayIcon.className = "fa-solid fa-circle-xmark text-rose-500 text-7xl md:text-9xl drop-shadow-lg";
+
+                // Toast Feedback
+                toastContent.className = "text-2xl sm:text-4xl md:text-5xl font-black px-6 py-4 md:py-6 rounded-2xl border-8 shadow-2xl text-center bg-rose-600 text-white border-rose-300";
+                toastContent.innerText = "你答錯了!努力再試!";
+                toast.classList.remove('hidden');
+
+                // Speak voice prompt
+                speak("你答錯了!努力再試!", () => {
+                    finishRound();
+                });
+            }
+        }
+
+        function finishRound() {
+            const toast = document.getElementById('feedback-toast');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                
+                if (currentRound < totalRounds) {
+                    currentRound++;
+                    updateUI();
+                    setupRound();
+                } else {
+                    showEndGameScreen();
+                }
+            }, 800);
+        }
+
+        function showEndGameScreen() {
+            document.getElementById('final-score').innerText = score;
+            const endFeedback = document.getElementById('end-feedback-text');
+            const endIcon = document.getElementById('end-icon');
+
+            if (score === 3) {
+                endIcon.innerText = "🌟🏆🌟";
+                endFeedback.innerText = "太厲害了！你答對了全部題目！";
+            } else if (score >= 1) {
+                endIcon.innerText = "👏🎉";
+                endFeedback.innerText = "表現得很好！再試一次挑戰滿分吧！";
+            } else {
+                endIcon.innerText = "💪😊";
+                endFeedback.innerText = "沒關係，多練習幾次就會記住了！";
+            }
+
+            document.getElementById('end-overlay').classList.remove('hidden');
+            speak(`遊戲結束！你的得分是 ${score} 分。`);
+        }
+    </script>
+</body>
+</html>
